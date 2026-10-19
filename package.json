@@ -1,0 +1,87 @@
+{
+  "name": "athena5",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Athena Exam Secure Desktop Application",
+  "author": "Athena",
+  "type": "module",
+  "main": "app/app.js",
+  "scripts": {
+    "start": "electron ./app/app.js",
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "backend": "node backend/server.js",
+    "electron": "electron ./app/app.js",
+    "pack": "vite build && electron-builder --dir",
+    "dist": "vite build && electron-builder --mac dmg"
+  },
+  "build": {
+    "appId": "com.athena.exam",
+    "productName": "Athena",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "app/**/*",
+      "backend/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "backend/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Athena Exam requires camera access to monitor test integrity.",
+        "NSMicrophoneUsageDescription": "Athena Exam requires microphone access during exams."
+      }
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "build/icon.icns",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    }
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "vite": "^8.3.0"
+  }
+}
