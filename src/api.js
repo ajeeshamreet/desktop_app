@@ -121,12 +121,92 @@ export function clearLocalActiveSession() {
   }
 }
 
+// Check if a student has already submitted or attempted the exam
+export async function checkStudentStatus(userId, name) {
+  const normalizedId = (userId || '').trim().toLowerCase();
+  if (!normalizedId) {
+    return { alreadySubmitted: false, session: null };
+  }
+
+  // 1. Check Electron local sessions via IPC if available
+  if (window.athena?.getLocalSessions) {
+    try {
+      const localSessions = await window.athena.getLocalSessions();
+      if (Array.isArray(localSessions)) {
+        const submitted = localSessions.find(
+          (s) => s.userId && s.userId.trim().toLowerCase() === normalizedId && s.status === 'submitted'
+        );
+        if (submitted) {
+          return {
+            alreadySubmitted: true,
+            session: submitted,
+            message: 'Student has already finished the test'
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Error checking Electron local-sessions:', err);
+    }
+  }
+
+  // 2. Check localStorage active or submitted session
+  try {
+    const raw = localStorage.getItem('athena_active_session');
+    if (raw) {
+      const session = JSON.parse(raw);
+      if (session?.userId && session.userId.trim().toLowerCase() === normalizedId && session.status === 'submitted') {
+        return {
+          alreadySubmitted: true,
+          session,
+          message: 'Student has already finished the test'
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Error checking localStorage:', err);
+  }
+
+  // 3. Check Backend /exam/student/:userId
+  try {
+    const baseUrl = await getBackendBaseUrl();
+    const res = await fetch(`${baseUrl}/exam/student/${encodeURIComponent(userId.trim())}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.alreadySubmitted) {
+        return {
+          alreadySubmitted: true,
+          session: data.submittedSession,
+          message: 'Student has already finished the test'
+        };
+      }
+      return {
+        alreadySubmitted: false,
+        hasInProgress: data.hasInProgress,
+        session: data.inProgressSession || null
+      };
+    }
+  } catch (err) {
+    console.warn('Backend /exam/student check unreachable:', err);
+  }
+
+  return {
+    alreadySubmitted: false,
+    session: null
+  };
+}
+
 // Start or Resume Exam Session locally and on backend
-export async function startExamSession(userId = 'student-101', name = 'Vaibhav', forceNew = false) {
+export async function startExamSession(userId, name, forceNew = false) {
+  const cleanId = (userId || 'student-101').trim();
+  const cleanName = (name || 'Candidate').trim();
+
   // If not forcing new session, check if we already have an active in-progress local session
   if (!forceNew) {
     const local = getLocalActiveSession();
-    if (local && local.userId === userId) {
+    if (local && local.userId && local.userId.trim().toLowerCase() === cleanId.toLowerCase()) {
       console.log('[Session] Reusing existing local in-progress session:', local.sessionId);
       return {
         message: 'Resumed local exam session',
@@ -144,15 +224,15 @@ export async function startExamSession(userId = 'student-101', name = 'Vaibhav',
     const res = await fetch(`${baseUrl}/exam/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, name, reset: forceNew }),
+      body: JSON.stringify({ userId: cleanId, name: cleanName, reset: forceNew }),
     });
 
     if (res.ok) {
       const data = await res.json();
       sessionData = data.session || {
         sessionId: data.sessionId,
-        userId,
-        name,
+        userId: cleanId,
+        name: cleanName,
         startedAt: new Date().toISOString(),
         status: 'in-progress',
         attempted: 0,
@@ -160,8 +240,17 @@ export async function startExamSession(userId = 'student-101', name = 'Vaibhav',
         wrong: 0,
         answers: []
       };
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      if (errData.alreadySubmitted || res.status === 403) {
+        const error = new Error(errData.message || 'Student has already finished the test');
+        error.alreadySubmitted = true;
+        error.session = errData.session;
+        throw error;
+      }
     }
   } catch (err) {
+    if (err.alreadySubmitted) throw err;
     console.warn('[Session] Backend start session unreachable, creating fully local session:', err);
   }
 
@@ -169,8 +258,8 @@ export async function startExamSession(userId = 'student-101', name = 'Vaibhav',
   if (!sessionData) {
     sessionData = {
       sessionId: `local-session-${Date.now()}`,
-      userId,
-      name,
+      userId: cleanId,
+      name: cleanName,
       startedAt: new Date().toISOString(),
       submittedAt: null,
       status: 'in-progress',

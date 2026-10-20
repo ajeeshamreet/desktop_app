@@ -1,9 +1,9 @@
-// App.jsx
 import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import {
   checkBackendHealth,
   startExamSession,
+  checkStudentStatus,
   getLocalActiveSession,
   clearLocalActiveSession
 } from './api';
@@ -25,6 +25,16 @@ function App() {
   const [dialogFeedback, setDialogFeedback] = useState(null);
   const [isConsentConfirmed, setIsConsentConfirmed] = useState(false);
 
+  // Candidate Identity, Verification & Countdown state
+  const [candidateName, setCandidateName] = useState('');
+  const [enrollmentNo, setEnrollmentNo] = useState('');
+  const [isCandidateRegistered, setIsCandidateRegistered] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
+  const [alreadySubmittedWarning, setAlreadySubmittedWarning] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+
   // Exam session and Quiz state
   const [inQuiz, setInQuiz] = useState(false);
   const [examSession, setExamSession] = useState(() => getLocalActiveSession());
@@ -35,6 +45,16 @@ function App() {
   const previewVideoRef = useRef(null);
   const [cameraStream, setCameraStream] = useState(null);
   const hasStartedQuizRef = useRef(false);
+
+  // Restore candidate name and ID from existing in-progress session if any
+  useEffect(() => {
+    const existing = getLocalActiveSession();
+    if (existing && existing.status === 'in-progress') {
+      if (existing.name) setCandidateName(existing.name);
+      if (existing.userId) setEnrollmentNo(existing.userId);
+      setIsCandidateRegistered(true);
+    }
+  }, []);
 
   // 1. Initial Listeners and Local Session Check
   useEffect(() => {
@@ -76,7 +96,12 @@ function App() {
     // Register Listener for handling FullScreen status changes from Main
     let removeFullScreenListener = () => {};
     if (window.athena?.registerListenerForFullScreenChange) {
-      removeFullScreenListener = window.athena.registerListenerForFullScreenChange(setFullScreen);
+      removeFullScreenListener = window.athena.registerListenerForFullScreenChange((isFull) => {
+        setFullScreen(isFull);
+        if (isFull) {
+          setShowRegistrationModal(true);
+        }
+      });
     }
 
     // Check backend connection
@@ -203,6 +228,7 @@ function App() {
         await enableFullScreen();
       }
       setFullScreen(true);
+      setShowRegistrationModal(true);
     } catch (err) {
       console.error('Cannot access camera:', err);
       alert('Cannot access Camera: ' + err.message);
@@ -217,24 +243,105 @@ function App() {
         await document.documentElement.requestFullscreen();
       }
       setFullScreen(true);
+      setShowRegistrationModal(true);
     } catch (err) {
       console.error('Cannot access full screen:', err);
       alert('Cannot access full screen');
     }
   }
 
+  // Candidate verification check
+  async function handleVerifyCandidate(e) {
+    if (e) e.preventDefault();
+    const name = candidateName.trim();
+    const enrollment = enrollmentNo.trim();
+
+    if (!name) {
+      setVerificationError('Please enter your full name.');
+      return;
+    }
+    if (!enrollment) {
+      setVerificationError('Please enter your enrollment number.');
+      return;
+    }
+
+    setVerificationError('');
+    setIsVerifying(true);
+    setAlreadySubmittedWarning(null);
+
+    try {
+      const status = await checkStudentStatus(enrollment, name);
+      if (status.alreadySubmitted) {
+        // Warning: student has already submitted / finished the test
+        setAlreadySubmittedWarning({
+          message: 'Student has already finished the test.',
+          studentName: status.session?.name || name,
+          enrollmentNo: status.session?.userId || enrollment,
+          submittedAt: status.session?.submittedAt,
+          attempted: status.session?.attempted,
+          correct: status.session?.correct,
+          wrong: status.session?.wrong,
+          sessionId: status.session?.sessionId
+        });
+        setIsVerifying(false);
+        return;
+      }
+
+      // First time attempt: begin 5-second countdown!
+      setIsCandidateRegistered(true);
+      setCountdown(5);
+    } catch (err) {
+      console.error('Candidate verification error:', err);
+      setVerificationError('Verification failed: ' + (err.message || 'Please try again'));
+    } finally {
+      setIsVerifying(false);
+    }
+  }
+
+  // 5-second countdown effect for first-time attempts
+  useEffect(() => {
+    if (countdown === null) return;
+
+    if (countdown > 0) {
+      const timerId = setTimeout(() => {
+        setCountdown((c) => (c !== null ? c - 1 : null));
+      }, 1000);
+      return () => clearTimeout(timerId);
+    } else if (countdown === 0) {
+      setCountdown(null);
+      setShowRegistrationModal(false);
+      handleStartQuiz(false, enrollmentNo.trim(), candidateName.trim());
+    }
+  }, [countdown, enrollmentNo, candidateName]);
+
+  function handleSkipCountdown() {
+    setCountdown(null);
+    setShowRegistrationModal(false);
+    handleStartQuiz(false, enrollmentNo.trim(), candidateName.trim());
+  }
+
+  function handleResetVerification() {
+    setAlreadySubmittedWarning(null);
+    setVerificationError('');
+    setIsCandidateRegistered(false);
+    setCountdown(null);
+  }
+
   // Function to initialize/resume exam session and transition to Quiz
-  async function handleStartQuiz(forceNew = false) {
+  async function handleStartQuiz(forceNew = false, customEnrollment = null, customName = null) {
     if (isStartingQuiz) return;
     setIsStartingQuiz(true);
 
+    const activeEnrollment = customEnrollment || enrollmentNo.trim() || 'student-101';
+    const activeName = customName || candidateName.trim() || 'Candidate';
+
     try {
       // 1. Start or resume exam session (locally & on backend)
-      const startRes = await startExamSession('student-101', 'Vaibhav', forceNew);
+      const startRes = await startExamSession(activeEnrollment, activeName, forceNew);
       const activeSession = startRes.session || {
         sessionId: startRes.sessionId,
-        userId: 'student-101',
-        name: 'Vaibhav'
+        userId: activeEnrollment,
+        name: activeName
       };
 
       setExamSession(activeSession);
@@ -254,26 +361,25 @@ function App() {
       }, 600);
     } catch (err) {
       console.error('Failed to start exam session:', err);
-      alert(`Could not start exam session: ${err.message}`);
+      if (err.alreadySubmitted) {
+        setAlreadySubmittedWarning({
+          message: 'Student has already finished the test.',
+          studentName: err.session?.name || activeName,
+          enrollmentNo: err.session?.userId || activeEnrollment,
+          submittedAt: err.session?.submittedAt,
+          sessionId: err.session?.sessionId
+        });
+        setShowRegistrationModal(true);
+      } else {
+        alert(`Could not start exam session: ${err.message}`);
+      }
     } finally {
       setIsStartingQuiz(false);
     }
   }
 
-  // All checks satisfied condition
+  // All readiness checks satisfied condition
   const allChecksPassed = (backendStatus === 'connected' || backendStatus === 'connecting') && cameraEnabled && fullScreen;
-
-  // Auto-launch quiz once when all checks pass
-  useEffect(() => {
-    if (allChecksPassed && !inQuiz && !hasStartedQuizRef.current) {
-      hasStartedQuizRef.current = true;
-      const timerId = setTimeout(() => {
-        handleStartQuiz(false);
-      }, 1000);
-
-      return () => clearTimeout(timerId);
-    }
-  }, [allChecksPassed, inQuiz]);
 
   // Restart assessment afresh
   function handleStartNewAssessment() {
@@ -281,12 +387,15 @@ function App() {
     hasStartedQuizRef.current = false;
     setInQuiz(false);
     setExamSession(null);
+    setCandidateName('');
+    setEnrollmentNo('');
+    setIsCandidateRegistered(false);
+    setAlreadySubmittedWarning(null);
+    setCountdown(null);
+    setShowRegistrationModal(true);
     setSnapshotCount(0);
     setScreenSnapshotCount(0);
     setLastSavedScreenSnap('');
-    setTimeout(() => {
-      handleStartQuiz(true);
-    }, 200);
   }
 
   // Dialog API helpers
@@ -392,7 +501,7 @@ function App() {
         <div className="page-container">
           {/* Header */}
           <div className="header-section">
-            <h1>Hi Vaibhav!</h1>
+            <h1>{candidateName.trim() ? `Hi ${candidateName.trim()}!` : 'Athena Examination Portal'}</h1>
             <p>Kindly verify the following system checks to start the test:</p>
           </div>
 
@@ -408,11 +517,15 @@ function App() {
             </div>
             <div className="check-badge passed">
               <span className="check-icon">✓</span>
-              <span>Screen Capture (desktopCapturer) Ready</span>
+              <span>Screen Capture Ready</span>
             </div>
             <div className={`check-badge ${fullScreen ? 'passed' : 'pending'}`}>
               <span className="check-icon">{fullScreen ? '✓' : '○'}</span>
               <span>Fullscreen Lockdown {fullScreen ? 'Active' : 'Pending'}</span>
+            </div>
+            <div className={`check-badge ${isCandidateRegistered ? 'passed' : 'pending'}`}>
+              <span className="check-icon">{isCandidateRegistered ? '✓' : '○'}</span>
+              <span>Candidate {isCandidateRegistered ? `Verified (${enrollmentNo})` : 'Verification Pending'}</span>
             </div>
           </div>
 
@@ -489,34 +602,70 @@ function App() {
                     {fullScreen ? '🟢 Full Screen Active' : '⚪ Required'}
                   </span>
                 </div>
-                <p>Full screen mode is mandatory during the assessment to maintain exam integrity.</p>
-                <button
-                  className="btn btn-primary"
-                  disabled={fullScreen}
-                  onClick={enableFullScreen}
-                >
-                  {fullScreen ? 'Full Screen Enabled' : 'Give Full Screen Permissions'}
-                </button>
+                <p>Full screen mode is mandatory. Once in full screen, you will be prompted to enter your candidate credentials.</p>
+                <div className="action-row">
+                  <button
+                    className="btn btn-primary"
+                    disabled={fullScreen}
+                    onClick={enableFullScreen}
+                  >
+                    {fullScreen ? 'Full Screen Enabled' : 'Give Full Screen Permissions'}
+                  </button>
+                  {fullScreen && !isCandidateRegistered && (
+                    <button
+                      className="btn btn-accent"
+                      onClick={() => setShowRegistrationModal(true)}
+                    >
+                      Enter Candidate Details ✍️
+                    </button>
+                  )}
+                  {fullScreen && isCandidateRegistered && (
+                    <button
+                      className="btn btn-outline"
+                      onClick={() => setShowRegistrationModal(true)}
+                    >
+                      Candidate: {candidateName} ({enrollmentNo})
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Auto-start notice or Ready Banner */}
-          {allChecksPassed && (
+          {/* Candidate Registration / Ready Banner */}
+          {allChecksPassed && isCandidateRegistered && (
             <div className="auto-start-banner">
               <div className="banner-content">
                 <span className="party-icon">🎉</span>
                 <div>
                   <h4>All system readiness checks passed!</h4>
-                  <p>Loading assessment quiz now...</p>
+                  <p>Candidate verified: {candidateName} ({enrollmentNo})</p>
                 </div>
               </div>
               <button
                 className="btn btn-black"
-                onClick={() => handleStartQuiz(false)}
+                onClick={() => handleStartQuiz(false, enrollmentNo, candidateName)}
                 disabled={isStartingQuiz}
               >
                 {isStartingQuiz ? 'Loading...' : 'Go To Test Now →'}
+              </button>
+            </div>
+          )}
+
+          {allChecksPassed && !isCandidateRegistered && (
+            <div className="auto-start-banner" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' }}>
+              <div className="banner-content">
+                <span className="party-icon">📝</span>
+                <div>
+                  <h4>System Checks Passed! Candidate Details Required</h4>
+                  <p>Please enter your name and enrollment number to start the 5s timer and test.</p>
+                </div>
+              </div>
+              <button
+                className="btn btn-black"
+                onClick={() => setShowRegistrationModal(true)}
+              >
+                Enter Name & Enrollment →
               </button>
             </div>
           )}
@@ -604,11 +753,17 @@ function App() {
           <div className="card-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 700 }}>
-                {allChecksPassed ? 'Ready to attempt quiz!' : 'Complete all checks to start'}
+                {allChecksPassed && isCandidateRegistered
+                  ? 'Ready to attempt quiz!'
+                  : allChecksPassed
+                  ? 'Enter Candidate Details'
+                  : 'Complete all checks to start'}
               </h3>
               <p className="subtext-hint">
-                {allChecksPassed
-                  ? 'All checks verified. Starting quiz...'
+                {allChecksPassed && isCandidateRegistered
+                  ? `All checks verified for ${candidateName} (${enrollmentNo}).`
+                  : allChecksPassed
+                  ? 'Please enter your name and enrollment number in full screen mode.'
                   : 'Please connect camera and allow full screen to begin.'}
               </p>
             </div>
@@ -616,7 +771,7 @@ function App() {
               {fullScreen && (
                 <button
                   className="btn btn-outline"
-                  onClick={() => window.athena?.requestExit()}
+                  onClick={() => window.athena?.requestExit ? window.athena.requestExit() : window.close()}
                   title="Exit Exam"
                 >
                   Exit Exam (Cmd + Q)
@@ -625,11 +780,209 @@ function App() {
               <button
                 className="btn btn-primary"
                 disabled={!allChecksPassed || isStartingQuiz}
-                onClick={() => handleStartQuiz(false)}
+                onClick={() => {
+                  if (!isCandidateRegistered) {
+                    setShowRegistrationModal(true);
+                  } else {
+                    handleStartQuiz(false, enrollmentNo, candidateName);
+                  }
+                }}
               >
-                {isStartingQuiz ? 'Starting...' : 'Go To Test'}
+                {isStartingQuiz
+                  ? 'Starting...'
+                  : isCandidateRegistered
+                  ? 'Go To Test'
+                  : 'Enter Details & Start'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Modal: Prompt in Full Screen / Warning If Already Submitted / 5s Countdown */}
+      {((fullScreen && !inQuiz && (!isCandidateRegistered || alreadySubmittedWarning || countdown !== null)) || (showRegistrationModal && !inQuiz)) && (
+        <div className="candidate-overlay">
+          <div className="candidate-modal-card">
+            {/* 1. WARNING VIEW: Student Has Already Finished The Test */}
+            {alreadySubmittedWarning ? (
+              <div className="warning-container">
+                <div className="warning-icon-badge">⚠️</div>
+                <div className="modal-badge" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+                  Assessment Status: Already Finished
+                </div>
+                <h2 className="warning-title">Student Has Already Finished The Test</h2>
+                <p className="warning-subtitle">
+                  Our records show that an assessment has already been attempted and submitted under this enrollment number. Re-attempting the test is restricted.
+                </p>
+
+                <div className="warning-details-card">
+                  <div className="warning-detail-row">
+                    <span className="label">Candidate Name:</span>
+                    <span className="value">{alreadySubmittedWarning.studentName}</span>
+                  </div>
+                  <div className="warning-detail-row">
+                    <span className="label">Enrollment Number:</span>
+                    <span className="value">{alreadySubmittedWarning.enrollmentNo}</span>
+                  </div>
+                  <div className="warning-detail-row">
+                    <span className="label">Exam Status:</span>
+                    <span className="warning-badge-pill">SUBMITTED</span>
+                  </div>
+                  {alreadySubmittedWarning.submittedAt && (
+                    <div className="warning-detail-row">
+                      <span className="label">Submitted At:</span>
+                      <span className="value" style={{ fontSize: '12px' }}>
+                        {new Date(alreadySubmittedWarning.submittedAt).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {alreadySubmittedWarning.attempted !== undefined && (
+                    <div className="warning-detail-row">
+                      <span className="label">Questions Attempted:</span>
+                      <span className="value">{alreadySubmittedWarning.attempted} questions</span>
+                    </div>
+                  )}
+                  {alreadySubmittedWarning.sessionId && (
+                    <div className="warning-detail-row">
+                      <span className="label">Session ID:</span>
+                      <span className="value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                        {alreadySubmittedWarning.sessionId}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="candidate-actions">
+                  <button className="btn btn-primary btn-block" onClick={handleResetVerification}>
+                    Enter Different Enrollment Number
+                  </button>
+                  <button
+                    className="btn btn-outline btn-block"
+                    onClick={() => window.athena?.requestExit ? window.athena.requestExit() : window.close()}
+                  >
+                    Exit Examination (Cmd + Q)
+                  </button>
+                </div>
+              </div>
+            ) : countdown !== null ? (
+              /* 2. 5-SECOND COUNTDOWN VIEW FOR FIRST TIME ATTEMPTS */
+              <div className="countdown-container">
+                <div className="verified-pill">
+                  <span>✓</span> Credentials Verified Successfully
+                </div>
+                <h3 className="countdown-candidate-tag">
+                  Welcome, {candidateName}
+                </h3>
+                <p className="countdown-subtext">
+                  Enrollment No: <strong>{enrollmentNo}</strong> • First Attempt
+                </p>
+
+                {/* Big Animated Circular Countdown */}
+                <div className="countdown-timer-circle">
+                  <span className="countdown-number">{countdown}</span>
+                  <span className="countdown-label">Seconds</span>
+                </div>
+
+                {/* Smooth Progress Bar */}
+                <div className="countdown-progress-bar-bg">
+                  <div
+                    className="countdown-progress-bar-fill"
+                    style={{ width: `${(countdown / 5) * 100}%` }}
+                  ></div>
+                </div>
+
+                <div className="countdown-instructions">
+                  <div><strong>• Test begins automatically</strong> after 5 seconds.</div>
+                  <div><strong>• Webcam monitoring & screen capture</strong> are activated.</div>
+                  <div><strong>• Fullscreen lockdown</strong> is active. Do not exit or minimize.</div>
+                </div>
+
+                <div className="candidate-actions">
+                  <button className="btn btn-black btn-block" onClick={handleSkipCountdown}>
+                    Start Assessment Immediately →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* 3. CANDIDATE IDENTITY PROMPT (NAME & ENROLLMENT NUMBER) */
+              <div>
+                <div className="candidate-modal-header">
+                  <div className="modal-badge">ATHENA SECURE ASSESSMENT</div>
+                  <h2>Candidate Identity Verification</h2>
+                  <p>You are now in full screen mode. Please enter your name and enrollment number to verify and begin your test.</p>
+                </div>
+
+                <form className="candidate-form" onSubmit={handleVerifyCandidate}>
+                  <div className="form-field">
+                    <label className="form-label" htmlFor="cand-name-input">
+                      <span>Candidate Full Name *</span>
+                    </label>
+                    <div className="input-wrapper">
+                      <span className="input-icon">👤</span>
+                      <input
+                        id="cand-name-input"
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Vaibhav Sharma"
+                        value={candidateName}
+                        onChange={(e) => setCandidateName(e.target.value)}
+                        autoFocus
+                        disabled={isVerifying}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label className="form-label" htmlFor="cand-enrollment-input">
+                      <span>Enrollment Number / Student ID *</span>
+                    </label>
+                    <div className="input-wrapper">
+                      <span className="input-icon">🆔</span>
+                      <input
+                        id="cand-enrollment-input"
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. ENR-2026-101"
+                        value={enrollmentNo}
+                        onChange={(e) => setEnrollmentNo(e.target.value)}
+                        disabled={isVerifying}
+                      />
+                    </div>
+                  </div>
+
+                  {verificationError && (
+                    <div className="form-error-alert">
+                      <span>⚠️</span>
+                      <span>{verificationError}</span>
+                    </div>
+                  )}
+
+                  <div className="fullscreen-notice-pill">
+                    <span>🔒</span>
+                    <span>Fullscreen active. Assessment can only be submitted once per student.</span>
+                  </div>
+
+                  <div className="candidate-actions">
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-block"
+                      disabled={isVerifying || !candidateName.trim() || !enrollmentNo.trim()}
+                    >
+                      {isVerifying ? 'Verifying Student Records...' : 'Verify & Begin Assessment →'}
+                    </button>
+                    {!fullScreen && (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-block"
+                        onClick={() => setShowRegistrationModal(false)}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

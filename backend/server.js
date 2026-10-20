@@ -72,6 +72,40 @@ app.get("/", (req, res) => {
   res.json({ message: "Exam backend is running" });
 });
 
+// Check if student has an existing submitted or in-progress session
+app.get("/exam/student/:userId", (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required" });
+  }
+
+  const sessions = readSessions();
+  const normalizedId = userId.trim().toLowerCase();
+
+  const submittedSessions = sessions.filter(
+    (item) => item.userId && item.userId.trim().toLowerCase() === normalizedId && item.status === "submitted"
+  );
+  const submittedSession = submittedSessions.length > 0
+    ? submittedSessions[submittedSessions.length - 1]
+    : null;
+
+  const inProgressSessions = sessions.filter(
+    (item) => item.userId && item.userId.trim().toLowerCase() === normalizedId && item.status === "in-progress"
+  );
+  const inProgressSession = inProgressSessions.length > 0
+    ? inProgressSessions[inProgressSessions.length - 1]
+    : null;
+
+  res.json({
+    userId,
+    alreadySubmitted: !!submittedSession,
+    submittedSession,
+    hasInProgress: !!inProgressSession,
+    inProgressSession,
+  });
+});
+
 // Start or resume an exam session
 app.post("/exam/start", (req, res) => {
   const { userId, name, reset } = req.body;
@@ -83,11 +117,25 @@ app.post("/exam/start", (req, res) => {
   }
 
   const sessions = readSessions();
+  const normalizedId = userId.trim().toLowerCase();
 
-  // If an in-progress session already exists for this user, resume it locally
+  // If student has already submitted the test and reset is not requested
   if (!reset) {
+    const submittedSession = sessions.find(
+      (item) => item.userId && item.userId.trim().toLowerCase() === normalizedId && item.status === "submitted"
+    );
+
+    if (submittedSession) {
+      return res.status(403).json({
+        message: "Student has already finished the test",
+        alreadySubmitted: true,
+        session: submittedSession,
+      });
+    }
+
+    // If an in-progress session already exists for this user, resume it
     const existingSession = sessions.find(
-      (item) => item.userId === userId && item.status === "in-progress"
+      (item) => item.userId && item.userId.trim().toLowerCase() === normalizedId && item.status === "in-progress"
     );
 
     if (existingSession) {

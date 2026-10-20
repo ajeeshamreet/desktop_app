@@ -157,5 +157,43 @@
         "answeredAt": "2026-10-19T08:12:16.538Z"
       }
     ]
+  },
+  {
+    "sessionId": "session-1792502776632",
+    "userId": "2401010001",
+    "name": "Aditya",
+    "startedAt": "2026-10-20T13:26:16.632Z",
+    "submittedAt": "2026-10-20T13:26:25.682Z",
+    "status": "submitted",
+    "attempted": 5,
+    "correct": 0,
+    "wrong": 5,
+    "answers": [
+      {
+        "questionId": 1,
+        "selectedAnswer": 2,
+        "answeredAt": "2026-10-20T13:26:18.552Z"
+      },
+      {
+        "questionId": 2,
+        "selectedAnswer": 1,
+        "answeredAt": "2026-10-20T13:26:19.976Z"
+      },
+      {
+        "questionId": 3,
+        "selectedAnswer": 0,
+        "answeredAt": "2026-10-20T13:26:21.309Z"
+      },
+      {
+        "questionId": 4,
+        "selectedAnswer": 3,
+        "answeredAt": "2026-10-20T13:26:22.634Z"
+      },
+      {
+        "questionId": 5,
+        "selectedAnswer": 2,
+        "answeredAt": "2026-10-20T13:26:25.670Z"
+      }
+    ]
   }
 ]

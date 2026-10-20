@@ -227,7 +227,7 @@ export default function QuizView({
           <div className="proctoring-summary-card">
             <h4>Proctoring & Audit Trail</h4>
             <p>Session ID: <code>{session?.sessionId}</code></p>
-            <p>Candidate: <strong>{session?.name || 'Vaibhav'}</strong> ({session?.userId || 'student-101'})</p>
+            <p>Candidate: <strong>{session?.name || 'Candidate'}</strong> ({session?.userId || 'N/A'})</p>
             <div className="proctor-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', margin: '12px 0' }}>
               <div className="proctor-stat-box" style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <span style={{ fontSize: '13px', color: '#64748b' }}>Webcam Snaps (5s):</span>
@@ -268,8 +268,8 @@ export default function QuizView({
         <div className="nav-left">
           <div className="logo-badge">ATHENA</div>
           <div className="candidate-info">
-            <span className="cand-name">{session?.name || 'Vaibhav'}</span>
-            <span className="cand-id">ID: {session?.userId || 'student-101'}</span>
+            <span className="cand-name">{session?.name || 'Candidate'}</span>
+            <span className="cand-id">ID: {session?.userId || 'N/A'}</span>
           </div>
         </div>
 
