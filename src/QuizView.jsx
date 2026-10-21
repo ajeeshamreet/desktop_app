@@ -190,12 +190,20 @@ export default function QuizView({
     const scorePct = Math.round((examResult.correct / total) * 100) || 0;
 
     return (
-      <div className="quiz-page-container">
+      <div className="quiz-page-container result-page-wrapper">
+        {/* Top-left Close & Exit Exam Button */}
+        <button
+          className="result-exit-btn-top-left"
+          onClick={onExitExam}
+          title="Exit Exam (Cmd + Q)"
+        >
+          ← Close & Exit Exam
+        </button>
+
         <div className="card-container result-card">
           <div className="result-header">
             <div className="badge-pill success-pill">Assessment Completed</div>
             <h1>Exam Results & Evaluation</h1>
-            <p>Your responses and proctoring audit have been saved locally.</p>
           </div>
 
           <div className="score-overview">
@@ -222,39 +230,6 @@ export default function QuizView({
                 <span className="stat-title">Time Taken</span>
               </div>
             </div>
-          </div>
-
-          <div className="proctoring-summary-card">
-            <h4>Proctoring & Audit Trail</h4>
-            <p>Session ID: <code>{session?.sessionId}</code></p>
-            <p>Candidate: <strong>{session?.name || 'Candidate'}</strong> ({session?.userId || 'N/A'})</p>
-            <div className="proctor-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', margin: '12px 0' }}>
-              <div className="proctor-stat-box" style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Webcam Snaps (5s):</span>
-                <p style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '4px 0 0 0' }}>📸 {snapshotCount}</p>
-              </div>
-              <div className="proctor-stat-box" style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Screen Captures (5s):</span>
-                <p style={{ fontSize: '18px', fontWeight: '700', color: '#2563eb', margin: '4px 0 0 0' }}>🖥️ {screenSnapshotCount}</p>
-              </div>
-            </div>
-            {lastSavedSnap && (
-              <p className="subtext-hint">Last camera snapshot: <code>{lastSavedSnap}</code></p>
-            )}
-            {lastSavedScreenSnap && (
-              <p className="subtext-hint" style={{ marginTop: '4px' }}>Last screen capture: <code>{lastSavedScreenSnap}</code></p>
-            )}
-          </div>
-
-          <div className="result-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            {onStartNewExam && (
-              <button className="btn btn-primary" onClick={onStartNewExam}>
-                Start New Assessment
-              </button>
-            )}
-            <button className="btn btn-black" onClick={onExitExam}>
-              Close & Exit Exam
-            </button>
           </div>
         </div>
       </div>

@@ -799,13 +799,53 @@ body {
 }
 
 /* Result Screen */
+.result-page-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.result-exit-btn-top-left {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.result-exit-btn-top-left:hover {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
 .result-card {
   text-align: center;
-  padding: 44px 32px;
+  padding: 48px 40px;
+  max-width: 660px;
+  width: 100%;
+  margin: auto;
 }
 
 .result-header {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .badge-pill.success-pill {
