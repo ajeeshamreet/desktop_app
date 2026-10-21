@@ -173,7 +173,13 @@ export default function QuizView({
     return (
       <div className="quiz-page-container">
         <div className="card-container error-box">
-          <div className="error-icon">⚠️</div>
+          <div className="error-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
           <h2>Error Loading Quiz</h2>
           <p>{error}</p>
           <button className="btn btn-primary" onClick={() => window.location.reload()}>
@@ -241,7 +247,6 @@ export default function QuizView({
       {/* Quiz Top Navbar */}
       <header className="quiz-navbar">
         <div className="nav-left">
-          <div className="logo-badge">ATHENA</div>
           <div className="candidate-info">
             <span className="cand-name">{session?.name || 'Candidate'}</span>
             <span className="cand-id">ID: {session?.userId || 'N/A'}</span>
@@ -250,7 +255,10 @@ export default function QuizView({
 
         <div className="nav-center">
           <div className="timer-badge">
-            <span className="timer-icon">⏱️</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
             <span className="timer-text">{formatTimer(timer)}</span>
           </div>
           <div className="answered-pill">
@@ -259,47 +267,11 @@ export default function QuizView({
         </div>
 
         <div className="nav-right">
-          {/* Live Proctoring Preview & Snaps Counter */}
+          {/* Live Proctoring Status */}
           <div className="proctoring-pill">
             <span className="pulsing-dot"></span>
-            <span className="proctor-text">
-              Proctoring ({snapshotCount} cam • {screenSnapshotCount} screen)
-            </span>
-            <video
-              ref={miniCamRef}
-              autoPlay
-              playsInline
-              muted
-              className="proctor-cam-mini"
-              title="Webcam feed"
-            />
-            {onManualSnap && (
-              <button
-                className="snap-btn-quick"
-                onClick={onManualSnap}
-                title="Capture camera snapshot"
-              >
-                📸 Snap
-              </button>
-            )}
-            {onManualScreenSnap && (
-              <button
-                className="snap-btn-quick"
-                onClick={onManualScreenSnap}
-                title="Capture screen now via desktopCapturer"
-              >
-                🖥️ Screen
-              </button>
-            )}
+            <span className="proctor-text">Proctoring</span>
           </div>
-
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={onExitExam}
-            title="Safe exit dialog"
-          >
-            Exit Exam
-          </button>
         </div>
       </header>
 
@@ -452,13 +424,10 @@ export default function QuizView({
           <div className="modal-content">
             <h3>Confirm Final Submission</h3>
             <p>
-              You have answered <strong>{answeredCount}</strong> of <strong>{totalQuestions}</strong> questions.
+              {answeredCount < totalQuestions
+                ? `You have ${totalQuestions - answeredCount} unanswered question(s). Are you sure you want to finish the exam now?`
+                : 'Are you sure you want to finish and submit the exam?'}
             </p>
-            {answeredCount < totalQuestions && (
-              <p className="modal-warning">
-                ⚠️ You have {totalQuestions - answeredCount} unanswered question(s). Are you sure you want to finish the exam now?
-              </p>
-            )}
             <div className="modal-actions">
               <button
                 className="btn btn-outline"

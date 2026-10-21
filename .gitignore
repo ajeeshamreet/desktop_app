@@ -23,3 +23,15 @@ release/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+
+# Proctoring Snapshots and Screen Captures
+**/user-camera-snap/
+user-camera-snap/
+app/user-camera-snap/
+*.jpg
+*.jpeg
+*.png
+!public/**
+!src/**
+!build/**
+!image.png

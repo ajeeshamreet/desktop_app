@@ -9,6 +9,30 @@ import {
 } from './api';
 import QuizView from './QuizView';
 
+function CheckIcon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function CircleIcon({ size = 10 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}
+
+function SyncIcon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+    </svg>
+  );
+}
+
 function App() {
   // Readiness state
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -502,80 +526,37 @@ function App() {
           {/* Header */}
           <div className="header-section">
             <h1>{candidateName.trim() ? `Hi ${candidateName.trim()}!` : 'Athena Examination Portal'}</h1>
-            <p>Kindly verify the following system checks to start the test:</p>
           </div>
 
-          {/* System Checks Summary Banner */}
-          <div className="system-checks-banner">
-            <div className={`check-badge ${backendStatus === 'connected' ? 'passed' : 'pending'}`}>
-              <span className="check-icon">{backendStatus === 'connected' ? '✓' : '⟳'}</span>
-              <span>Session Mode: Local & Server Sync</span>
+          {backendError && backendStatus === 'error' && (
+            <div className="card-container" style={{ marginBottom: 20, borderColor: '#fecaca', background: '#fef2f2' }}>
+              <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: 6 }}>Server Connection Issue</div>
+              <p style={{ color: '#7f1d1d', fontSize: 14 }}>{backendError}</p>
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={pollBackendStatus}>
+                Retry Connection
+              </button>
             </div>
-            <div className={`check-badge ${cameraEnabled ? 'passed' : 'pending'}`}>
-              <span className="check-icon">{cameraEnabled ? '✓' : '○'}</span>
-              <span>Webcam Proctoring {cameraEnabled ? 'Connected' : 'Pending'}</span>
-            </div>
-            <div className="check-badge passed">
-              <span className="check-icon">✓</span>
-              <span>Screen Capture Ready</span>
-            </div>
-            <div className={`check-badge ${fullScreen ? 'passed' : 'pending'}`}>
-              <span className="check-icon">{fullScreen ? '✓' : '○'}</span>
-              <span>Fullscreen Lockdown {fullScreen ? 'Active' : 'Pending'}</span>
-            </div>
-            <div className={`check-badge ${isCandidateRegistered ? 'passed' : 'pending'}`}>
-              <span className="check-icon">{isCandidateRegistered ? '✓' : '○'}</span>
-              <span>Candidate {isCandidateRegistered ? `Verified (${enrollmentNo})` : 'Verification Pending'}</span>
-            </div>
-          </div>
+          )}
 
           {/* Main Readiness Card */}
           <div className="card-container">
-            {/* Check 1: Backend Connection */}
+            {/* Check 1: Camera */}
             <div className="permission-item">
               <div className="permission-content">
                 <div className="permission-title-row">
-                  <h3>1. Local Exam Session & Backend</h3>
-                  <span className={`status-pill ${backendStatus}`}>
-                    {backendStatus === 'connected' && '🟢 Connected (Local & Server)'}
-                    {backendStatus === 'connecting' && '🟡 Connecting...'}
-                    {backendStatus === 'error' && '🟡 Local Mode (Offline)'}
-                  </span>
-                </div>
-                <p>
-                  Sessions are stored locally on your machine and synchronized with the backend.
-                  {examSession && ` Active local session: ${examSession.sessionId}`}
-                </p>
-                {backendError && backendStatus === 'error' && (
-                  <p className="subtext-hint" style={{ color: '#b45309' }}>{backendError}</p>
-                )}
-                {backendStatus !== 'connected' && (
-                  <button className="btn btn-secondary" onClick={pollBackendStatus}>
-                    Retry Server Sync
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="divider"></div>
-
-            {/* Check 2: Camera */}
-            <div className="permission-item">
-              <div className="permission-content">
-                <div className="permission-title-row">
-                  <h3>2. Configure Heimdall Proctoring (Camera)</h3>
+                  <h3>1. Configure Camera</h3>
                   <span className={`status-pill ${cameraEnabled ? 'connected' : 'pending'}`}>
-                    {cameraEnabled ? '🟢 Camera Connected' : '⚪ Required'}
+                    {cameraEnabled ? 'Camera Connected' : 'Required'}
                   </span>
                 </div>
-                <p>Kindly configure camera to attempt quiz and enable automated camera snapshots every 5 seconds.</p>
+                <p>Configure camera to attempt quiz and enable automated proctoring.</p>
                 <div className="action-row">
                   <button
                     className="btn btn-black"
                     disabled={cameraEnabled}
                     onClick={getCameraAccess}
                   >
-                    {cameraEnabled ? 'Camera Connected' : 'Connect with Heimdall'}
+                    {cameraEnabled ? 'Camera Connected' : 'Connect Camera'}
                   </button>
 
                   {/* Video Feed Preview */}
@@ -593,13 +574,13 @@ function App() {
 
             <div className="divider"></div>
 
-            {/* Check 3: Fullscreen */}
+            {/* Check 2: Fullscreen */}
             <div className="permission-item">
               <div className="permission-content">
                 <div className="permission-title-row">
-                  <h3>3. Switch to full screen</h3>
+                  <h3>2. Switch to full screen</h3>
                   <span className={`status-pill ${fullScreen ? 'connected' : 'pending'}`}>
-                    {fullScreen ? '🟢 Full Screen Active' : '⚪ Required'}
+                    {fullScreen ? 'Full Screen Active' : 'Required'}
                   </span>
                 </div>
                 <p>Full screen mode is mandatory. Once in full screen, you will be prompted to enter your candidate credentials.</p>
@@ -616,7 +597,7 @@ function App() {
                       className="btn btn-accent"
                       onClick={() => setShowRegistrationModal(true)}
                     >
-                      Enter Candidate Details ✍️
+                      Enter Candidate Details
                     </button>
                   )}
                   {fullScreen && isCandidateRegistered && (
@@ -636,7 +617,6 @@ function App() {
           {allChecksPassed && isCandidateRegistered && (
             <div className="auto-start-banner">
               <div className="banner-content">
-                <span className="party-icon">🎉</span>
                 <div>
                   <h4>All system readiness checks passed!</h4>
                   <p>Candidate verified: {candidateName} ({enrollmentNo})</p>
@@ -655,7 +635,6 @@ function App() {
           {allChecksPassed && !isCandidateRegistered && (
             <div className="auto-start-banner" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' }}>
               <div className="banner-content">
-                <span className="party-icon">📝</span>
                 <div>
                   <h4>System Checks Passed! Candidate Details Required</h4>
                   <p>Please enter your name and enrollment number to start the 5s timer and test.</p>
@@ -670,84 +649,6 @@ function App() {
             </div>
           )}
 
-          {/* Proctored Storage & Dialog Settings Card */}
-          <div className="card-container config-card">
-            <div className="header-section" style={{ textAlign: 'left', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
-                Snapshot Storage & Security Settings
-              </h2>
-              <p style={{ fontSize: 14, color: '#64748b' }}>
-                Manage where camera shots are stored and test snapshot capture
-              </p>
-            </div>
-
-            {/* Storage folder and manual test capture */}
-            <div className="config-item">
-              <h3 style={{ fontSize: 16, fontWeight: 600 }}>Proctoring Storage Folder (Camera & Screen Capture)</h3>
-              <p className="subtext-hint">
-                Automatic webcam captures and screen captures (via <code>desktopCapturer</code>) will be stored in this directory every 5s during your test.
-              </p>
-              <div className="controls-row">
-                <button className="btn btn-black" onClick={handleSelectCameraFolder}>
-                  📁 Choose Storage Folder
-                </button>
-                <div className="path-badge highlight">
-                  <span className="badge-icon">📍</span>
-                  <span>{cameraSnapFolder || 'Default: app/user-camera-snap'}</span>
-                </div>
-                <button
-                  className="btn btn-outline"
-                  disabled={!cameraEnabled}
-                  onClick={captureCameraSnapshot}
-                  title="Test webcam snapshot right now"
-                >
-                  📸 Test Camera
-                </button>
-                <button
-                  className="btn btn-outline"
-                  disabled={isCapturingScreen}
-                  onClick={triggerScreenCapture}
-                  title="Test screen capture via desktopCapturer right now"
-                >
-                  {isCapturingScreen ? '⏳ Capturing...' : '🖥️ Test Screen Capture'}
-                </button>
-              </div>
-              {lastSavedSnap && (
-                <div className="path-badge" style={{ marginTop: '8px', color: '#166534', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                  <span className="badge-icon">📸</span>
-                  <span>Saved Cam #{snapshotCount}: {lastSavedSnap}</span>
-                </div>
-              )}
-              {lastSavedScreenSnap && (
-                <div className="path-badge" style={{ marginTop: '6px', color: '#1e40af', background: '#eff6ff', borderColor: '#bfdbfe' }}>
-                  <span className="badge-icon">🖥️</span>
-                  <span>Saved Screen #{screenSnapshotCount}: {lastSavedScreenSnap}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="divider"></div>
-
-            {/* Dialog consent */}
-            <div className="config-item">
-              <h3 style={{ fontSize: 16, fontWeight: 600 }}>Security Consent & Exam Rules</h3>
-              <div className="controls-row">
-                <button className="btn btn-accent" onClick={handleTriggerCheckboxDialog}>
-                  💬 Open Security Consent Dialog
-                </button>
-                <button className="btn btn-outline" onClick={onReviewRulesClicked}>
-                  Show Exam Rules
-                </button>
-              </div>
-
-              {dialogFeedback && (
-                <div className={`status-feedback-box ${dialogFeedback.type}`}>
-                  <div className="feedback-title">{dialogFeedback.title}</div>
-                  <div className="feedback-desc">{dialogFeedback.message}</div>
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Bottom Action Footer */}
           <div className="card-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
@@ -806,7 +707,13 @@ function App() {
             {/* 1. WARNING VIEW: Student Has Already Finished The Test */}
             {alreadySubmittedWarning ? (
               <div className="warning-container">
-                <div className="warning-icon-badge">⚠️</div>
+                <div className="warning-icon-badge">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
                 <div className="modal-badge" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
                   Assessment Status: Already Finished
                 </div>
@@ -860,7 +767,7 @@ function App() {
               /* 2. 5-SECOND COUNTDOWN VIEW FOR FIRST TIME ATTEMPTS */
               <div className="countdown-container">
                 <div className="verified-pill">
-                  <span>✓</span> Credentials Verified Successfully
+                  <CheckIcon size={14} /> Credentials Verified Successfully
                 </div>
                 <h3 className="countdown-candidate-tag">
                   Welcome, {candidateName}
@@ -899,7 +806,6 @@ function App() {
               /* 3. CANDIDATE IDENTITY PROMPT (NAME & ENROLLMENT NUMBER) */
               <div>
                 <div className="candidate-modal-header">
-                  <div className="modal-badge">ATHENA SECURE ASSESSMENT</div>
                   <h2>Candidate Identity Verification</h2>
                   <p>You are now in full screen mode. Please enter your name and enrollment number to verify and begin your test.</p>
                 </div>
@@ -910,12 +816,10 @@ function App() {
                       <span>Candidate Full Name *</span>
                     </label>
                     <div className="input-wrapper">
-                      <span className="input-icon">👤</span>
                       <input
                         id="cand-name-input"
                         type="text"
                         className="form-input"
-                        placeholder="e.g. Vaibhav Sharma"
                         value={candidateName}
                         onChange={(e) => setCandidateName(e.target.value)}
                         autoFocus
@@ -929,12 +833,10 @@ function App() {
                       <span>Enrollment Number / Student ID *</span>
                     </label>
                     <div className="input-wrapper">
-                      <span className="input-icon">🆔</span>
                       <input
                         id="cand-enrollment-input"
                         type="text"
                         className="form-input"
-                        placeholder="e.g. ENR-2026-101"
                         value={enrollmentNo}
                         onChange={(e) => setEnrollmentNo(e.target.value)}
                         disabled={isVerifying}
@@ -944,15 +846,9 @@ function App() {
 
                   {verificationError && (
                     <div className="form-error-alert">
-                      <span>⚠️</span>
                       <span>{verificationError}</span>
                     </div>
                   )}
-
-                  <div className="fullscreen-notice-pill">
-                    <span>🔒</span>
-                    <span>Fullscreen active. Assessment can only be submitted once per student.</span>
-                  </div>
 
                   <div className="candidate-actions">
                     <button

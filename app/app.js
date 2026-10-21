@@ -13,6 +13,30 @@ let screenInterval = null;
 let cameraSnapDir = path.join(import.meta.dirname, "user-camera-snap");
 let localSessionsPath = path.join(import.meta.dirname, "local-sessions.json");
 
+function getCameraSubDir() {
+    const dir = path.join(cameraSnapDir, "camera");
+    if (!fs.existsSync(dir)) {
+        try {
+            fs.mkdirSync(dir, { recursive: true });
+        } catch {
+            // Ignore error
+        }
+    }
+    return dir;
+}
+
+function getScreenSubDir() {
+    const dir = path.join(cameraSnapDir, "screen");
+    if (!fs.existsSync(dir)) {
+        try {
+            fs.mkdirSync(dir, { recursive: true });
+        } catch {
+            // Ignore error
+        }
+    }
+    return dir;
+}
+
 function initStoragePaths() {
     if (app.isPackaged) {
         const userData = app.getPath("userData");
@@ -36,6 +60,8 @@ function initStoragePaths() {
             // Ignore error
         }
     }
+    getCameraSubDir();
+    getScreenSubDir();
 }
 
 // Capture desktop screen using Electron's desktopCapturer API
@@ -83,10 +109,11 @@ async function captureDesktopScreen() {
             return { success: false, error: 'Screen capture returned empty image' };
         }
 
-        // Convert NativeImage thumbnail to JPEG buffer and save in cameraSnapDir
+        // Convert NativeImage thumbnail to JPEG buffer and save in screen subfolder
         const buffer = primarySource.thumbnail.toJPEG(85);
         const fileName = `screen-${Date.now()}.jpg`;
-        const filePath = path.join(cameraSnapDir, fileName);
+        const screenDir = getScreenSubDir();
+        const filePath = path.join(screenDir, fileName);
 
         fs.writeFileSync(filePath, buffer);
         console.log(`[Screen Capture] Saved screen capture to disk: ${filePath} (${buffer.length} bytes)`);
@@ -323,20 +350,20 @@ ipcMain.handle('start-timer', () => {
         }
     }, 1000);
 
-    // Capture user's camera snap every 5s
+    // Capture user's camera snap every 1s
     cameraInterval = setInterval(() => {
         if (electronWindow && !electronWindow.isDestroyed()) {
             electronWindow.webContents.send('camera-shot');
         }
-    }, 5000);
+    }, 1000);
 
-    // Capture screen every 5s using desktopCapturer
+    // Capture screen every 1s using desktopCapturer
     screenInterval = setInterval(async () => {
         const result = await captureDesktopScreen();
         if (result.success && electronWindow && !electronWindow.isDestroyed()) {
             electronWindow.webContents.send('screen-shot', result);
         }
-    }, 5000);
+    }, 1000);
 
     return { started: true };
 });
@@ -380,6 +407,8 @@ ipcMain.handle('select-camera-folder', async () => {
         if (!fs.existsSync(cameraSnapDir)) {
             fs.mkdirSync(cameraSnapDir, { recursive: true });
         }
+        getCameraSubDir();
+        getScreenSubDir();
         return { canceled: false, folderPath: cameraSnapDir };
     }
 
@@ -426,14 +455,12 @@ ipcMain.handle('show-checkbox-dialog', async (_event, customOptions = {}) => {
 
 // Local sessions file path in app or user-data directory (initialized in initStoragePaths)
 
-// Store captured camera snap image to disk in the configured folder
+// Store captured camera snap image to disk in camera subfolder under main folder
 ipcMain.handle('store-camera-snap-image-on-disk', (_event, data) => {
     try {
-        if (!fs.existsSync(cameraSnapDir)) {
-            fs.mkdirSync(cameraSnapDir, { recursive: true });
-        }
+        const camDir = getCameraSubDir();
         const fileName = `snap-${Date.now()}.jpg`;
-        const filePath = path.join(cameraSnapDir, fileName);
+        const filePath = path.join(camDir, fileName);
 
         let buffer;
         if (typeof data === 'string' && data.startsWith('data:image')) {
