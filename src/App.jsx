@@ -311,9 +311,9 @@ function App() {
         return;
       }
 
-      // First time attempt: begin 5-second countdown!
+      // First time attempt: begin 15-second countdown!
       setIsCandidateRegistered(true);
-      setCountdown(5);
+      setCountdown(15);
     } catch (err) {
       console.error('Candidate verification error:', err);
       setVerificationError('Verification failed: ' + (err.message || 'Please try again'));
@@ -322,7 +322,7 @@ function App() {
     }
   }
 
-  // 5-second countdown effect for first-time attempts
+  // 15-second countdown effect for first-time attempts
   useEffect(() => {
     if (countdown === null) return;
 
@@ -637,7 +637,7 @@ function App() {
               <div className="banner-content">
                 <div>
                   <h4>System Checks Passed! Candidate Details Required</h4>
-                  <p>Please enter your name and enrollment number to start the 5s timer and test.</p>
+                  <p>Please enter your name and enrollment number to start the 15s timer and test.</p>
                 </div>
               </div>
               <button
@@ -769,36 +769,21 @@ function App() {
                 <div className="verified-pill">
                   <CheckIcon size={14} /> Credentials Verified Successfully
                 </div>
-                <h3 className="countdown-candidate-tag">
-                  Welcome, {candidateName}
-                </h3>
-                <p className="countdown-subtext">
-                  Enrollment No: <strong>{enrollmentNo}</strong> • First Attempt
-                </p>
 
-                {/* Big Animated Circular Countdown */}
-                <div className="countdown-timer-circle">
-                  <span className="countdown-number">{countdown}</span>
-                  <span className="countdown-label">Seconds</span>
-                </div>
-
-                {/* Smooth Progress Bar */}
-                <div className="countdown-progress-bar-bg">
-                  <div
-                    className="countdown-progress-bar-fill"
-                    style={{ width: `${(countdown / 5) * 100}%` }}
-                  ></div>
-                </div>
-
-                <div className="countdown-instructions">
-                  <div><strong>• Test begins automatically</strong> after 5 seconds.</div>
-                  <div><strong>• Webcam monitoring & screen capture</strong> are activated.</div>
-                  <div><strong>• Fullscreen lockdown</strong> is active. Do not exit or minimize.</div>
+                <div className="exam-rules-card">
+                  <h4 className="exam-rules-title">Exam Rules & Guidelines</h4>
+                  <ul className="exam-rules-list">
+                    <li>Stay on the exam window at all times. Do not switch tabs or applications.</li>
+                    <li>Webcam monitoring and screen captures are active throughout the exam.</li>
+                    <li>Fullscreen mode is mandatory until final submission.</li>
+                    <li>External assistance, phones, and secondary devices are strictly prohibited.</li>
+                    <li>Review all your answers carefully before submitting the exam.</li>
+                  </ul>
                 </div>
 
                 <div className="candidate-actions">
-                  <button className="btn btn-black btn-block" onClick={handleSkipCountdown}>
-                    Start Assessment Immediately →
+                  <button className="btn btn-green btn-block" onClick={handleSkipCountdown}>
+                    Start Test / {countdown}s
                   </button>
                 </div>
               </div>
