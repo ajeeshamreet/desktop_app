@@ -842,14 +842,6 @@ function App() {
                       <span className="value">{alreadySubmittedWarning.attempted} questions</span>
                     </div>
                   )}
-                  {alreadySubmittedWarning.sessionId && (
-                    <div className="warning-detail-row">
-                      <span className="label">Session ID:</span>
-                      <span className="value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                        {alreadySubmittedWarning.sessionId}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 <div className="candidate-actions">
