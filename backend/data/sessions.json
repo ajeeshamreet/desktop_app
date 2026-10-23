@@ -537,5 +537,17 @@
     "correct": 0,
     "wrong": 0,
     "answers": []
+  },
+  {
+    "sessionId": "session-1792743553078",
+    "userId": "123",
+    "name": "A",
+    "startedAt": "2026-10-23T08:19:13.079Z",
+    "submittedAt": "2026-10-23T08:19:17.267Z",
+    "status": "submitted",
+    "attempted": 0,
+    "correct": 0,
+    "wrong": 0,
+    "answers": []
   }
 ]

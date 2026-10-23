@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, desktopCapturer, screen } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, desktopCapturer, screen, Menu } from "electron";
 import path from "path";
 import fs from "fs";
 import { fork } from "child_process";
@@ -293,7 +293,7 @@ async function createWindow() {
         }
     });
 
-    // Intercept Command + Q and Escape keys on webContents
+    // Intercept Command + Q, Escape, and disable Copy/Paste/Cut/Select All shortcuts on webContents
     electronWindow.webContents.on('before-input-event', (event, input) => {
         // Prevent Escape from exiting fullscreen when locked
         if (isLockedFullScreen && input.key === 'Escape') {
@@ -305,7 +305,45 @@ async function createWindow() {
             event.preventDefault();
             handleExitConfirmation();
         }
+
+        // Disable Ctrl+C, Ctrl+V, Cmd+C, Cmd+V, Ctrl+X, Cmd+X, Ctrl+A, Cmd+A, etc.
+        if (input.meta || input.control) {
+            const key = input.key.toLowerCase();
+            if (['c', 'v', 'x', 'a', 'p', 's', 'u', 'insert'].includes(key)) {
+                event.preventDefault();
+            }
+        }
+        if (input.shift && input.key.toLowerCase() === 'insert') {
+            event.preventDefault();
+        }
     });
+
+    // Disable context menu (right-click copy/inspect)
+    electronWindow.webContents.on('context-menu', (event) => {
+        event.preventDefault();
+    });
+
+    // Remove or customize application menu to prevent system Edit menu accelerators (Copy/Paste)
+    if (process.platform === 'darwin') {
+        Menu.setApplicationMenu(Menu.buildFromTemplate([
+            {
+                label: app.name,
+                submenu: [
+                    { role: 'about' },
+                    { type: 'separator' },
+                    {
+                        label: `Quit ${app.name}`,
+                        accelerator: 'CmdOrCtrl+Q',
+                        click: () => {
+                            handleExitConfirmation();
+                        }
+                    }
+                ]
+            }
+        ]));
+    } else {
+        Menu.setApplicationMenu(null);
+    }
 
     // Intercept window close event
     electronWindow.on('close', (event) => {
