@@ -122,9 +122,6 @@ function App() {
     if (window.athena?.registerListenerForFullScreenChange) {
       removeFullScreenListener = window.athena.registerListenerForFullScreenChange((isFull) => {
         setFullScreen(isFull);
-        if (isFull) {
-          setShowRegistrationModal(true);
-        }
       });
     }
 
@@ -228,7 +225,7 @@ function App() {
     return null;
   }
 
-  // Get camera access & enter fullscreen
+  // Get camera access (Heimdall)
   async function getCameraAccess() {
     try {
       const videoData = await navigator.mediaDevices.getUserMedia({
@@ -244,15 +241,6 @@ function App() {
         previewVideoRef.current.srcObject = videoData;
       }
       setCameraEnabled(true);
-
-      // Automatically enter locked full screen mode upon granting camera access
-      if (window.athena?.enterFullScreen) {
-        await window.athena.enterFullScreen();
-      } else {
-        await enableFullScreen();
-      }
-      setFullScreen(true);
-      setShowRegistrationModal(true);
     } catch (err) {
       console.error('Cannot access camera:', err);
       alert('Cannot access Camera: ' + err.message);
@@ -267,7 +255,6 @@ function App() {
         await document.documentElement.requestFullscreen();
       }
       setFullScreen(true);
-      setShowRegistrationModal(true);
     } catch (err) {
       console.error('Cannot access full screen:', err);
       alert('Cannot access full screen');
@@ -402,8 +389,9 @@ function App() {
     }
   }
 
-  // All readiness checks satisfied condition
-  const allChecksPassed = (backendStatus === 'connected' || backendStatus === 'connecting') && cameraEnabled && fullScreen;
+  // Both camera (Heimdall) and fullscreen must be active
+  const bothReady = cameraEnabled && fullScreen;
+  const allChecksPassed = (backendStatus === 'connected' || backendStatus === 'connecting') && bothReady;
 
   // Restart assessment afresh
   function handleStartNewAssessment() {
@@ -583,7 +571,7 @@ function App() {
                     {fullScreen ? 'Full Screen Active' : 'Required'}
                   </span>
                 </div>
-                <p>Full screen mode is mandatory. Once in full screen, you will be prompted to enter your candidate credentials.</p>
+                <p>Full screen mode is mandatory. Both camera and full screen must be active to start the test.</p>
                 <div className="action-row">
                   <button
                     className="btn btn-primary"
@@ -592,7 +580,7 @@ function App() {
                   >
                     {fullScreen ? 'Full Screen Enabled' : 'Give Full Screen Permissions'}
                   </button>
-                  {fullScreen && !isCandidateRegistered && (
+                  {bothReady && !isCandidateRegistered && (
                     <button
                       className="btn btn-accent"
                       onClick={() => setShowRegistrationModal(true)}
@@ -600,7 +588,7 @@ function App() {
                       Enter Candidate Details
                     </button>
                   )}
-                  {fullScreen && isCandidateRegistered && (
+                  {bothReady && isCandidateRegistered && (
                     <button
                       className="btn btn-outline"
                       onClick={() => setShowRegistrationModal(true)}
@@ -613,59 +601,26 @@ function App() {
             </div>
           </div>
 
-          {/* Candidate Registration / Ready Banner */}
-          {allChecksPassed && isCandidateRegistered && (
-            <div className="auto-start-banner">
-              <div className="banner-content">
-                <div>
-                  <h4>All system readiness checks passed!</h4>
-                  <p>Candidate verified: {candidateName} ({enrollmentNo})</p>
-                </div>
-              </div>
-              <button
-                className="btn btn-black"
-                onClick={() => handleStartQuiz(false, enrollmentNo, candidateName)}
-                disabled={isStartingQuiz}
-              >
-                {isStartingQuiz ? 'Loading...' : 'Go To Test Now →'}
-              </button>
-            </div>
-          )}
-
-          {allChecksPassed && !isCandidateRegistered && (
-            <div className="auto-start-banner" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)' }}>
-              <div className="banner-content">
-                <div>
-                  <h4>System Checks Passed! Candidate Details Required</h4>
-                  <p>Please enter your name and enrollment number to start the 15s timer and test.</p>
-                </div>
-              </div>
-              <button
-                className="btn btn-black"
-                onClick={() => setShowRegistrationModal(true)}
-              >
-                Enter Name & Enrollment →
-              </button>
-            </div>
-          )}
-
-
           {/* Bottom Action Footer */}
           <div className="card-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 700 }}>
-                {allChecksPassed && isCandidateRegistered
+                {bothReady && isCandidateRegistered
                   ? 'Ready to attempt quiz!'
-                  : allChecksPassed
-                  ? 'Enter Candidate Details'
+                  : bothReady
+                  ? 'Ready to Start Test'
                   : 'Complete all checks to start'}
               </h3>
               <p className="subtext-hint">
-                {allChecksPassed && isCandidateRegistered
+                {bothReady && isCandidateRegistered
                   ? `All checks verified for ${candidateName} (${enrollmentNo}).`
-                  : allChecksPassed
-                  ? 'Please enter your name and enrollment number in full screen mode.'
-                  : 'Please connect camera and allow full screen to begin.'}
+                  : bothReady
+                  ? 'Camera connected and fullscreen active. Click Start Test to proceed.'
+                  : !cameraEnabled && !fullScreen
+                  ? 'Please connect camera and allow full screen to begin.'
+                  : !cameraEnabled
+                  ? 'Please connect camera to proceed.'
+                  : 'Please allow full screen to proceed.'}
               </p>
             </div>
             <div className="bottom-actions">
@@ -680,8 +635,9 @@ function App() {
               )}
               <button
                 className="btn btn-primary"
-                disabled={!allChecksPassed || isStartingQuiz}
+                disabled={!bothReady || isStartingQuiz}
                 onClick={() => {
+                  if (!bothReady) return;
                   if (!isCandidateRegistered) {
                     setShowRegistrationModal(true);
                   } else {
@@ -692,16 +648,16 @@ function App() {
                 {isStartingQuiz
                   ? 'Starting...'
                   : isCandidateRegistered
-                  ? 'Go To Test'
-                  : 'Enter Details & Start'}
+                  ? 'Start Test'
+                  : 'Start Test'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Candidate Modal: Prompt in Full Screen / Warning If Already Submitted / 5s Countdown */}
-      {((fullScreen && !inQuiz && (!isCandidateRegistered || alreadySubmittedWarning || countdown !== null)) || (showRegistrationModal && !inQuiz)) && (
+      {/* Candidate Modal: Only open when both Heimdall and Fullscreen are active */}
+      {(!inQuiz && bothReady && (showRegistrationModal || alreadySubmittedWarning || countdown !== null)) && (
         <div className="candidate-overlay">
           <div className="candidate-modal-card">
             {/* 1. WARNING VIEW: Student Has Already Finished The Test */}
