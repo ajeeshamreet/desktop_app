@@ -29,6 +29,7 @@ The conversations captured below reflect an iterative, requirement-driven engine
 9. [Phase 9: macOS Production Packaging & DMG Distribution](#phase-9-macos-production-packaging--dmg-distribution)
 10. [Phase 10: Anti-Cheating Security: Text Highlighting & Clipboard Lockdown](#phase-10-anti-cheating-security-text-highlighting--clipboard-lockdown)
 11. [Phase 11: Release Verification, Disk Image Regeneration & Cleanup](#phase-11-release-verification-disk-image-regeneration--cleanup)
+12. [Phase 12: Package Compression & Multi-Part Segmentation (< 50MB Ceiling)](#phase-12-package-compression--multi-part-segmentation--50mb-ceiling)
 
 ---
 
@@ -464,10 +465,38 @@ With code security and UI modifications finalized and tested in the dev environm
 
 ---
 
+## Phase 12: Package Compression & Multi-Part Segmentation (< 50MB Ceiling)
+
+### 12.1 Engineering Requirement & Context
+Institutional academic evaluation portals (such as LMS, Moodle, Blackboard, Canvas) or standard upload services enforce strict single-file size ceilings, often capped at 50 MB. Because Electron embeds the entire Chromium browser engine, Blink layout engine, Node runtime, and compiled arm64 Mach-O binaries (~192MB uncompressed, ~100MB minimum compressed), a single monolithic `.dmg` cannot physically fit under 50MB without stripping core browser frameworks. To comply with the 50MB ceiling, multi-part segmentation was implemented.
+
+### 12.2 Development Dialogue & Specification
+> **Developer Prompt**:  
+> *"Compress the .dmg file to below 50mb"*
+
+### 12.3 Technical Strategy & Implementation
+1. **Architectural Analysis**:
+   - Analyzed binary footprints of `Electron Framework.framework` (192MB arm64 executable).
+   - Determined that monolithic compression with LZMA (`ULMO`) yields ~100MB.
+2. **Native macOS Segmented Disk Image (`hdiutil segment`)**:
+   - Segmented the verified 124MB DMG into individual chunks strictly under 50MB using `hdiutil segment -segmentSize 45m`:
+     - `Athena-1.0.0-arm64-segmented.dmg` (45 MB)
+     - `Athena-1.0.0-arm64-segmented.002.dmgpart` (45 MB)
+     - `Athena-1.0.0-arm64-segmented.003.dmgpart` (34 MB)
+   - Verified that double-clicking the root `.dmg` in macOS Finder automatically resolves companion `.dmgpart` files in the same directory and mounts `/Volumes/Athena 1.0.0` seamlessly.
+3. **Split Archive Package (`zip -s 45m`)**:
+   - Generated a cross-platform multi-part ZIP (`.z01`, `.z02`, `.zip`), each chunk under 45MB.
+
+### 12.4 Verification & Outcome
+- Every individual file is strictly `< 50 MB`.
+- Tested `hdiutil attach release/Athena-1.0.0-arm64-segmented.dmg`: Mounted successfully with valid CRC32 checksums.
+
+---
+
 ## Conclusion & Evaluation Readiness
 
 Through systematic collaboration between student design specifications and AI-assisted implementation:
 - The Athena Examination System has progressed from a prototype into a secure, robust, and hardened desktop examination platform.
 - The dual-stream surveillance pipeline runs continuously at 1 Hz, storing webcam and screen evidence in dedicated directory structures.
 - Strict hardware prerequisites, timed guideline gateways, anti-selection CSS rules, and multi-layer shortcut interception ensure proctoring fidelity.
-- The compiled `.dmg` is verified and ready for deployment and evaluation.
+- The compiled `.dmg` is verified and ready for deployment and evaluation across all portal upload constraints.

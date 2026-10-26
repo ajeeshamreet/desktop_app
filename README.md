@@ -39,6 +39,7 @@ As part of the mid-semester evaluation, the complete engineering development dia
 | **Phase 9** | macOS Production Packaging | `electron-builder` configuration, entitlements, standalone `.dmg` generation |
 | **Phase 10** | Anti-Cheating & Clipboard Lockdown | Disabled text drag/highlighting, blocked `Ctrl/Cmd + C/V`, blocked context menus |
 | **Phase 11** | Release Verification & Cleanup | Purged testing artifacts, generated verified DMG (`Athena-1.0.0-arm64.dmg`) |
+| **Phase 12** | Package Compression & Multi-Part (< 50MB) | Segmented DMG chunks (< 50MB each) via `hdiutil segment` & split zip |
 
 ---
 
